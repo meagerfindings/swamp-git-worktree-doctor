@@ -1,12 +1,13 @@
 manifestVersion: 1
 name: "@mgreten/git-worktree-doctor"
-version: "2026.10.14.1"
+version: "2026.11.19.1"
 license: MIT
 description: >
-  Diagnose and prune git worktrees. Parses `git worktree list --porcelain`,
-  validates paths exist on disk, detects stale/locked/prunable entries,
-  and optionally prunes them. Works with any git repository — no
-  project-specific assumptions.
+  Diagnose, prune, and remove stale git worktrees. Parses `git worktree list
+  --porcelain`, validates paths exist on disk, detects stale/locked/prunable
+  entries, prunes dead entries, and removes stale worktrees while keeping
+  branches and skipping dirty, locked, in-use, and recently active ones.
+  Works with any git repository — no project-specific assumptions.
 
 repository: https://github.com/meagerfindings/swamp-git-worktree-doctor
 

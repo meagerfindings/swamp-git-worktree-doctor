@@ -2,7 +2,7 @@
 
 Diagnose and maintain git worktrees. Parses `git worktree list --porcelain`,
 validates that each worktree path still exists on disk, flags stale/locked/prunable
-entries, and optionally prunes dead worktrees. Works with any git repository — no
+entries, optionally prunes dead worktrees, and removes stale ones. Works with any git repository — no
 project-specific assumptions.
 
 Useful as a preflight check before branch operations, a periodic health monitor,
@@ -83,6 +83,48 @@ Runs `git worktree prune` with optional dry-run and verbose flags. Defaults to
 | `verbose`  | boolean | no       | `false` | Pass `--verbose` to git              |
 
 **Output fields:** `prunedCount`, `prunedPaths`, `exitCode`, `success`.
+
+## Method: `removeStale`
+
+Removes stale linked worktrees in one run with `git worktree remove --force`,
+which deletes the directory and keeps the branch. Defaults to `dryRun: true`.
+
+```sh
+swamp model method run wt-doctor removeStale --input dryRun=false --json
+```
+
+A worktree is kept, with a reason, when it is:
+
+- the main worktree, bare, or locked (`main`, `bare`, `locked`)
+- gone from disk (`missing-path`; `prune` drops its metadata)
+- the working directory of a running process, per `lsof -d cwd` (`in-use`); live
+  runs refresh this before every removal
+- mid rebase, merge, cherry-pick, revert, or bisect (`operation-in-progress`)
+- carrying tracked changes (`tracked-changes`) or untracked files outside
+  `ignoreUntracked` (`untracked-files`)
+- active within `staleDays`, where activity is the newer of the worktree's index
+  mtime and its HEAD commit time (`active`)
+
+A detached HEAD whose commits are on no remote ref and not on the base branch
+gets a `backup/wt-<dirname>` branch at that commit before removal.
+
+| Argument          | Type     | Default            | Description                                 |
+| ----------------- | -------- | ------------------ | ------------------------------------------- |
+| `dryRun`          | boolean  | `true`             | Report without removing                     |
+| `repoPath`        | string   | —                  | Override the global path                    |
+| `staleDays`       | number   | `14`               | Keep worktrees active within this many days |
+| `ignoreUntracked` | string[] | agent overlay dirs | Untracked paths that do not block removal   |
+| `baseBranch`      | string   | origin/HEAD branch | Branch whose commits count as saved         |
+
+`ignoreUntracked` defaults to `.agents/`, `.amp/`, `.claude/`, `.opencode/`,
+`.ralph/`, `.adw/`, `.codex/`, `.swamp*`, and `skills-lock.json`. A pattern
+matches the path and everything below it; `*` matches within one segment.
+
+**Output:** one `staleSweep` resource per run with `removed[]` (path, branch,
+`branchLocation` of `remote`, `local-only`, or `detached`, `remoteBranch`,
+`unpushedCommits`, `backupBranch`, `durationMs`), `kept[]` (path, `reason`,
+`detail`), and `keptByReason` counts. On a dry run, `removed[]` lists what would
+be removed.
 
 ## How It Works
 
